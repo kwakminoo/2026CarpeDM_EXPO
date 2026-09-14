@@ -88,10 +88,20 @@ class OpenAIDialogueProvider:
         """첫 대사는 사용자가 선택한 기존 시나리오 대사를 그대로 사용한다."""
         episode = _episode_for(session, episodes)
         flow = interaction_state(session)
+        if flow.get("mode") in {"interview", "workplace"} and flow.get("items"):
+            item = flow["items"][0]
+            episode = next((row for row in episodes if row.id == item["episode_id"]), episode)
+            return QuestionSpec(
+                episode_id=episode.id,
+                question_type="initial",
+                question_text=item["text"],
+                character_id=episode.character_id,
+                virtual_time=episode.virtual_time or "",
+            )
         return QuestionSpec(
             episode_id=episode.id,
             question_type="initial",
-            question_text=flow["items"][0]["text"] if flow.get("mode") == "interview" else episode.initial_question,
+            question_text=episode.initial_question,
             character_id=episode.character_id,
             virtual_time=episode.virtual_time or "",
         )
@@ -118,16 +128,16 @@ class OpenAIDialogueProvider:
             episode = next(ep for ep in episodes if ep.id == flow["items"][flow["index"]]["episode_id"])
         character = _character_for(scenario, episode.character_id)
         reaction = ""
-        if flow.get("mode") == "interview":
-            if for_dialogue(session):
+        if flow.get("mode") in {"interview", "workplace"}:
+            if flow.get("mode") == "interview" and for_dialogue(session):
                 reaction = self._generate_line(session, scenario, episode, character, turns, reaction_only=True)
-            # 주요 질문 자체를 모델이 바꾸지 않도록 준비된 질문을 유지한다.
+            # 주요 질문·직장대화 상대 대사는 모델이 바꾸지 않는다.
             line = flow["items"][flow["index"]]["text"]
         else:
             line = self._generate_line(session, scenario, episode, character, turns)
         return QuestionSpec(
             episode_id=episode.id,
-            question_type="main" if flow.get("mode") == "interview" else "ai_roleplay",
+            question_type="main" if flow.get("mode") in {"interview", "workplace"} else "ai_roleplay",
             question_text=line,
             reaction_text=reaction,
             character_id=episode.character_id,

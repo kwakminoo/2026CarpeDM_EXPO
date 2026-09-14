@@ -1,11 +1,13 @@
 """시나리오 목표·주요 면접 질문 기준 진행. 상태는 rapport.interaction에 보존한다."""
 from app.ai.text_match import matched_checklist_ids
+from app.services.workplace import pick_workplace_episodes, scene_item
 
 VERSION = "interaction-v1"
 # 읽는 순서 3: 대화의 진행표입니다. 무엇을 확인했고 다음에 무엇을 물을지 기억합니다.
 # 면접은 주요 질문에 답한 수, 직무교육은 목표를 확인했는지가 진행 기준입니다.
 # '답변을 했다'와 '내용이 충분하다'는 다릅니다. 면접의 met는 현재 질문 응답 기록입니다.
 MAX_RETRIES = 2
+SCRIPT_MODES = {"interview", "workplace"}
 
 
 def state(session):
@@ -16,8 +18,10 @@ def save(session, value):
     session.rapport = {**(session.rapport or {}), "interaction": value}
 
 
-def initialize(session, scenario, episodes, service_mode):
+def initialize(session, scenario, episodes, service_mode, rng=None):
     policy = (scenario.world_setting or {}).get("interaction") or {}
+    if service_mode == "workplace" and not (scenario.world_setting or {}).get("workplace_categories"):
+        service_mode = "training"
     if service_mode == "interview":
         # 현재 질문은 문자열 목록입니다. 항목별 인정 기준을 넣으려면 여기의 items 구조와
         # sessions.py가 분석기에 넘기는 목표 목록을 함께 바꿔야 합니다.
@@ -25,6 +29,10 @@ def initialize(session, scenario, episodes, service_mode):
         if not 6 <= len(questions) <= 12 or any(not isinstance(q, str) or not q.strip() or len(q) > 180 for q in questions):
             raise ValueError("면접 시나리오에는 주요 질문을 6~12개 준비해야 합니다.")
         items = [{"id": f"question-{i+1}", "text": q, "episode_id": episodes[0].id} for i, q in enumerate(questions)]
+    elif service_mode == "workplace":
+        categories = (scenario.world_setting or {}).get("workplace_categories") or []
+        picked = pick_workplace_episodes(scenario, episodes, rng)
+        items = [scene_item(episode, category) for episode, category in zip(picked, categories)]
     else:
         items = [{**item, "id": f"{ep.id}:{item['id']}", "episode_id": ep.id,
                   "text": item.get("followup") or f"{item['label']} 내용을 구체적으로 말씀해 주세요."}
@@ -46,8 +54,8 @@ def advance(session, turn, turns, judgment=None):
     if not value or value.get("finished"):
         return value
     items = value["items"]
-    if value["mode"] == "interview":
-        # 빈 답변은 API에서 거부한다. 후속 질문은 주요 질문 수에 넣지 않는다.
+    if value["mode"] in SCRIPT_MODES:
+        # 빈 답변은 API에서 거부한다. 후속 질문은 준비된 장면 수에 넣지 않는다.
         if turn.question_type in {"initial", "main"}:
             value["met"] = list(dict.fromkeys([*value["met"], items[value["index"]]["id"]]))
             value["index"] += 1
@@ -70,17 +78,40 @@ def advance(session, turn, turns, judgment=None):
             value["index"] += 1
     if value["index"] >= len(items):
         value["finished"] = True
-        value["reason"] = "questions_completed" if value["mode"] == "interview" else "goals_met" if len(value["met"]) == len(items) else "analysis_unavailable" if value.get("unverified") else "goals_exhausted"
+        value["reason"] = "questions_completed" if value["mode"] in SCRIPT_MODES else "goals_met" if len(value["met"]) == len(items) else "analysis_unavailable" if value.get("unverified") else "goals_exhausted"
     save(session, value)
     return value
+
+
+def current_briefing(value):
+    if value.get("mode") != "workplace" or value.get("finished"):
+        return None
+    items = value.get("items") or []
+    index = value.get("index", 0)
+    if index >= len(items):
+        return None
+    item = items[index]
+    return {
+        "category_id": item.get("category_id", ""),
+        "category_label": item.get("category_label", ""),
+        "title": item.get("title", ""),
+        "situation": item.get("situation", ""),
+        "tip": item.get("tip", ""),
+        "step": index + 1,
+        "total": len(items),
+    }
 
 
 def public_state(session):
     value = state(session)
     if not value:
         return {}
-    return {key: value[key] for key in ("version", "mode", "index", "met", "unmet", "finished", "reason")} | {"total": len(value["items"]), "pending_confirmation": value.get("pending_confirmation", False), "unverified": value.get("unverified", []),
+    payload = {key: value[key] for key in ("version", "mode", "index", "met", "unmet", "finished", "reason")} | {"total": len(value["items"]), "pending_confirmation": value.get("pending_confirmation", False), "unverified": value.get("unverified", []),
         "finished": value["finished"] and not value.get("pending_confirmation", False)}
+    briefing = current_briefing(value)
+    if briefing:
+        payload["briefing"] = briefing
+    return payload
 
 
 def finish_manually(session):

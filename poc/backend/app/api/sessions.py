@@ -44,6 +44,7 @@ from app.ai.live_coaching import analyze_live_coaching
 from app.services.dialogue import DialogueGenerationError, QuestionSpec, get_dialogue_provider
 from app.services.dialogue import emotion, reactions
 from app.services.session_fsm import InvalidTransition, transition
+from app.services.workplace import WORKPLACE_SLUG
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -68,6 +69,11 @@ def _episode_title(db: Session, episode_id: int) -> str:
 
 def _selected_episodes(session: RoleplaySession, scenario: Scenario) -> list[Episode]:
     """선택 장면이 있으면 그 장면만, 없으면 기존 전체 시나리오를 사용한다."""
+    flow = interaction.state(session)
+    if flow.get("mode") == "workplace":
+        wanted = [item["episode_id"] for item in flow.get("items") or []]
+        lookup = {episode.id: episode for episode in scenario.episodes}
+        return [lookup[episode_id] for episode_id in wanted if episode_id in lookup]
     if not session.selected_episode_id:
         return list(scenario.episodes)
     return [episode for episode in scenario.episodes if episode.id == session.selected_episode_id]
@@ -151,6 +157,10 @@ def create_session(
         if job_role not in JOB_ROLES:
             raise HTTPException(status_code=422, detail="알 수 없는 직무입니다")
 
+    if body.service_mode != "workplace" and scenario_slug == WORKPLACE_SLUG:
+        scenario_slug = None
+    if body.service_mode == "workplace" and not body.nfc_uid and not scenario_slug:
+        scenario_slug = WORKPLACE_SLUG
     query = db.query(Scenario).filter_by(is_active=True)
     scenario = (
         query.filter_by(slug=scenario_slug).first()
@@ -492,7 +502,7 @@ def submit_response(
         target = flow["items"][flow["index"]]
         target_episode = db.get(Episode, target["episode_id"])
         spec = QuestionSpec(episode_id=target_episode.id, character_id=target_episode.character_id,
-            question_type="main" if flow["mode"] == "interview" else "ai_roleplay", question_text=target["text"])
+            question_type="main" if flow["mode"] in {"interview", "workplace"} else "ai_roleplay", question_text=target["text"])
         judgment["dialogue_status"] = "fallback"
         judgments.persist(session, judgment)
     signals_out.judgment = judgment

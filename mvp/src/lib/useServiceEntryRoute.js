@@ -18,6 +18,7 @@ import {
   savedSessionDestination,
 } from "./serviceEntryRoute";
 import { useNfcTap } from "./useNfcTap";
+import { WORKPLACE_SCENARIO_SLUG } from "./workplaceTrack";
 
 export function useServiceEntryRoute({ kioskIssueMode, requestExerciseMedia }) {
   const [active, setActive] = useState("boot");
@@ -192,6 +193,10 @@ export function useServiceEntryRoute({ kioskIssueMode, requestExerciseMedia }) {
   };
   const chooseServiceMode = (serviceModeId) => {
     setSelectedServiceModeId(serviceModeId);
+    setPocScenarioSlug(serviceModeId === "workplace" ? WORKPLACE_SCENARIO_SLUG : "");
+    setSelectedEpisodeId(null);
+    setCounterpartProfile(null);
+    setDifficulty(null);
     navigate("home", serviceModeId);
   };
   const chooseCounterpartProfile = (profileId) => {
