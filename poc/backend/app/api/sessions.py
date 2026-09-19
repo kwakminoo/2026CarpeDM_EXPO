@@ -44,7 +44,8 @@ from app.ai.live_coaching import analyze_live_coaching
 from app.services.dialogue import DialogueGenerationError, QuestionSpec, get_dialogue_provider
 from app.services.dialogue import emotion, reactions
 from app.services.session_fsm import InvalidTransition, transition
-from app.services.workplace import WORKPLACE_SLUG
+from app.services.workplace import WORKPLACE_SLUG, CONTINUOUS_MODE, act_bridge_line, continuous_fallback_line
+from app.services.dialogue import stats as dialogue_stats
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -70,9 +71,10 @@ def _episode_title(db: Session, episode_id: int) -> str:
 def _selected_episodes(session: RoleplaySession, scenario: Scenario) -> list[Episode]:
     """선택 장면이 있으면 그 장면만, 없으면 기존 전체 시나리오를 사용한다."""
     flow = interaction.state(session)
-    if flow.get("mode") == "workplace":
+    if flow.get("mode") in {"workplace", "workplace_continuous"}:
         wanted = [item["episode_id"] for item in flow.get("items") or []]
         lookup = {episode.id: episode for episode in scenario.episodes}
+        # 연속 모드는 같은 episode_id가 반복될 수 있어 순서·중복을 보존한다.
         return [lookup[episode_id] for episode_id in wanted if episode_id in lookup]
     if not session.selected_episode_id:
         return list(scenario.episodes)
@@ -469,6 +471,9 @@ def submit_response(
     selected_feedback = feedback.assign(session, judgment, turn.order)
     judgments.persist(session, judgment)
     flow = interaction.advance(session, turn, turns, judgment)
+    if flow and flow.get("mode") == CONTINUOUS_MODE:
+        flow["last_case"] = signals["case"]
+        interaction.save(session, flow)
     if (selected_feedback and selected_feedback["rule"] == "missing_goal" and not flow.get("finished")
             and selected_feedback["evidence"].get("goal_id") != flow["items"][flow["index"]]["id"]):
         judgment["feedback"] = None
@@ -501,8 +506,28 @@ def submit_response(
             raise HTTPException(status_code=503, detail=str(error)) from error
         target = flow["items"][flow["index"]]
         target_episode = db.get(Episode, target["episode_id"])
-        spec = QuestionSpec(episode_id=target_episode.id, character_id=target_episode.character_id,
-            question_type="main" if flow["mode"] in {"interview", "workplace"} else "ai_roleplay", question_text=target["text"])
+        character_id = target.get("character_id") or (target_episode.character_id if target_episode else "")
+        if flow.get("mode") == CONTINUOUS_MODE:
+            character = next(
+                (row for row in (session.scenario.characters or []) if row.get("id") == character_id),
+                {},
+            )
+            carry = flow.get("carry") or flow.get("plan", {}).get("carry_seed") or ""
+            dialogue_stats.note_fallback()
+            if target.get("act_open") and carry:
+                question_text = act_bridge_line(character, carry, target)
+            else:
+                question_text = continuous_fallback_line(
+                    character, turns, target, case=flow.get("last_case"),
+                )
+        else:
+            question_text = target["text"]
+        spec = QuestionSpec(
+            episode_id=target_episode.id,
+            character_id=character_id,
+            question_type="main" if flow["mode"] in {"interview", "workplace", CONTINUOUS_MODE} else "ai_roleplay",
+            question_text=question_text,
+        )
         judgment["dialogue_status"] = "fallback"
         judgments.persist(session, judgment)
     signals_out.judgment = judgment

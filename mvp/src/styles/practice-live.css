@@ -131,12 +131,21 @@
   backdrop-filter: blur(8px);
 }
 .practice-camera .counterpart-video { transform: none; object-position: center 30%; }
-.practice-camera.is-cafe-counterpart {
+.practice-camera.is-cafe-counterpart,
+.practice-camera.is-workplace-counterpart {
   background: center / cover no-repeat var(--counterpart-background);
 }
-.practice-camera.is-cafe-counterpart::before {
+.practice-camera.is-workplace-counterpart {
+  /* 사무실 톤 그라데이션 — 전용 배경 촬영분이 오면 --counterpart-background로 덮는다 */
+  --counterpart-background: linear-gradient(165deg, #1e2a3a 0%, #3d4f63 42%, #6a7d90 78%, #8fa0b0 100%);
+}
+.practice-camera.is-cafe-counterpart::before,
+.practice-camera.is-workplace-counterpart::before {
   background: linear-gradient(180deg, rgba(22, 18, 14, 0.1), transparent 34%, rgba(22, 18, 14, 0.22));
   mask-image: none;
+}
+.practice-camera.is-workplace-counterpart::before {
+  background: linear-gradient(180deg, rgba(8, 14, 28, 0.18), transparent 36%, rgba(8, 14, 28, 0.28));
 }
 .counterpart-video-stage { position: absolute; inset: 0; z-index: 1; }
 .counterpart-video-source { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

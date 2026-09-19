@@ -41,6 +41,17 @@ def openai_dialogue_ready() -> bool:
     return True
 
 
+def gemini_dialogue_ready() -> bool:
+    """Gemini API 키가 있으면 준비된 것으로 본다(키가 있을 때만 실호출)."""
+    if settings.dialogue_provider != "gemini":
+        return False
+    return bool(settings.gemini_api_key.get_secret_value())
+
+
 def dialogue_ready() -> bool:
-    """GPT-4o 역할극 대화가 새 시뮬레이션을 시작할 수 있는지 확인한다."""
-    return openai_dialogue_ready()
+    """선택한 대화 제공자가 새 시뮬레이션을 시작할 수 있는지 확인한다."""
+    if settings.dialogue_provider == "gemini":
+        return gemini_dialogue_ready()
+    if settings.dialogue_provider == "openai":
+        return openai_dialogue_ready()
+    return False

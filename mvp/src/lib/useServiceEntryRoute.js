@@ -7,7 +7,7 @@ import {
   DEMO_TURN_HISTORY,
   DEMO_TURN_SIGNALS,
 } from "../data/serviceEntryDemo";
-import { clearActiveSession, isReportFlowView, resolveReportIdleTimeoutMs } from "./exhibitionSession";
+import { clearActiveSession, resolveReportIdleTimeoutMs, shouldArmReportIdleReset } from "./exhibitionSession";
 import { getSession, loadActiveSession, resolveNfcCard } from "./pocApi";
 import {
   ENTRY_LOOKUP_TIMEOUT_MS,
@@ -142,7 +142,7 @@ export function useServiceEntryRoute({ kioskIssueMode, requestExerciseMedia }) {
   }, []);
 
   useEffect(() => {
-    if (!isReportFlowView(active)) return undefined;
+    if (!shouldArmReportIdleReset(active, report)) return undefined;
     const idleMs = resolveReportIdleTimeoutMs(window.location.search);
     if (idleMs === null) return undefined;
     let timer = 0;
@@ -157,7 +157,7 @@ export function useServiceEntryRoute({ kioskIssueMode, requestExerciseMedia }) {
       window.clearTimeout(timer);
       events.forEach((eventName) => window.removeEventListener(eventName, resetTimer));
     };
-  }, [active]);
+  }, [active, report]);
 
   const handleMirrorTap = async (tap) => {
     if (nfcResolvingRef.current) return;

@@ -10,11 +10,13 @@ test("workplace skips role selection and starts from preview", () => {
 });
 
 test("workplace briefing is exposed only during an active workplace session", () => {
-  const briefing = { step: 2, total: 5, situation: "상황", tip: "팁", category_label: "보고·피드백" };
+  const briefing = { step: 2, total: 12, situation: "상황", tip: "팁", category_label: "업무" };
   assert.deepEqual(workplaceBriefing({ mode: "workplace", briefing }), briefing);
+  assert.deepEqual(workplaceBriefing({ mode: "workplace_continuous", briefing }), briefing);
   assert.equal(workplaceBriefing({ mode: "training", briefing }), null);
   assert.equal(isWorkplaceSession({ interaction: { mode: "workplace" } }), true);
+  assert.equal(isWorkplaceSession({ interaction: { mode: "workplace_continuous" } }), true);
   assert.equal(isWorkplaceSession({ scenario: { slug: WORKPLACE_SCENARIO_SLUG } }), true);
-  assert.equal(workplaceCategories.length, 5);
-  assert.deepEqual(workplaceCategories.map((item) => item.label), ["출근·적응", "업무 지시·우선순위", "보고·피드백", "미팅·협업", "퇴근·관계"]);
+  assert.equal(workplaceCategories.length, 3);
+  assert.deepEqual(workplaceCategories.map((item) => item.label), ["출근", "업무", "퇴근"]);
 });

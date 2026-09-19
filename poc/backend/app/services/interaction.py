@@ -1,13 +1,13 @@
 """시나리오 목표·주요 면접 질문 기준 진행. 상태는 rapport.interaction에 보존한다."""
 from app.ai.text_match import matched_checklist_ids
-from app.services.workplace import pick_workplace_episodes, scene_item
+from app.services.workplace import CONTINUOUS_MODE, build_fallback_plan, enrich_plan_fallback_pools, flatten_plan_items
 
 VERSION = "interaction-v1"
 # 읽는 순서 3: 대화의 진행표입니다. 무엇을 확인했고 다음에 무엇을 물을지 기억합니다.
 # 면접은 주요 질문에 답한 수, 직무교육은 목표를 확인했는지가 진행 기준입니다.
 # '답변을 했다'와 '내용이 충분하다'는 다릅니다. 면접의 met는 현재 질문 응답 기록입니다.
 MAX_RETRIES = 2
-SCRIPT_MODES = {"interview", "workplace"}
+SCRIPT_MODES = {"interview", "workplace", CONTINUOUS_MODE}
 
 
 def state(session):
@@ -16,6 +16,23 @@ def state(session):
 
 def save(session, value):
     session.rapport = {**(session.rapport or {}), "interaction": value}
+
+
+def _plan_workplace(session, scenario, episodes, rng):
+    """Gemini Day Plan을 시도하고 실패하면 팩 폴백 BeatSheet를 쓴다."""
+    from app.core.config import settings
+    from app.services.dialogue import get_dialogue_provider
+
+    if settings.dialogue_provider == "gemini":
+        provider = get_dialogue_provider()
+        plan_fn = getattr(provider, "plan_workplace_day", None)
+        if plan_fn is not None:
+            try:
+                plan = plan_fn(session, scenario, episodes)
+                return enrich_plan_fallback_pools(plan, scenario, episodes, rng)
+            except Exception:
+                pass
+    return build_fallback_plan(scenario, episodes, session.mode, rng)
 
 
 def initialize(session, scenario, episodes, service_mode, rng=None):
@@ -29,18 +46,35 @@ def initialize(session, scenario, episodes, service_mode, rng=None):
         if not 6 <= len(questions) <= 12 or any(not isinstance(q, str) or not q.strip() or len(q) > 180 for q in questions):
             raise ValueError("면접 시나리오에는 주요 질문을 6~12개 준비해야 합니다.")
         items = [{"id": f"question-{i+1}", "text": q, "episode_id": episodes[0].id} for i, q in enumerate(questions)]
+        value = {"version": VERSION, "mode": service_mode, "items": items, "index": 0,
+                 "attempts": {}, "met": [], "unmet": [], "unverified": [], "reason": None, "finished": False}
     elif service_mode == "workplace":
-        categories = (scenario.world_setting or {}).get("workplace_categories") or []
-        picked = pick_workplace_episodes(scenario, episodes, rng)
-        items = [scene_item(episode, category) for episode, category in zip(picked, categories)]
+        plan = _plan_workplace(session, scenario, episodes, rng)
+        items = flatten_plan_items(plan)
+        if not items:
+            raise ValueError("직장대화 Day Plan에 비트가 없습니다.")
+        value = {
+            "version": VERSION,
+            "mode": CONTINUOUS_MODE,
+            "items": items,
+            "index": 0,
+            "attempts": {},
+            "met": [],
+            "unmet": [],
+            "unverified": [],
+            "reason": None,
+            "finished": False,
+            "plan": {"version": plan.get("version"), "source": plan.get("source"), "carry_seed": plan.get("carry_seed", "")},
+            "carry": plan.get("carry_seed") or "",
+        }
     else:
         items = [{**item, "id": f"{ep.id}:{item['id']}", "episode_id": ep.id,
                   "text": item.get("followup") or f"{item['label']} 내용을 구체적으로 말씀해 주세요."}
                  for ep in episodes for item in (ep.checklist or [])]
         if not items:
             raise ValueError("훈련 시나리오에는 목표 체크리스트가 필요합니다.")
-    value = {"version": VERSION, "mode": service_mode, "items": items, "index": 0,
-             "attempts": {}, "met": [], "unmet": [], "unverified": [], "reason": None, "finished": False}
+        value = {"version": VERSION, "mode": service_mode, "items": items, "index": 0,
+                 "attempts": {}, "met": [], "unmet": [], "unverified": [], "reason": None, "finished": False}
     save(session, value)
     return value
 
@@ -57,7 +91,14 @@ def advance(session, turn, turns, judgment=None):
     if value["mode"] in SCRIPT_MODES:
         # 빈 답변은 API에서 거부한다. 후속 질문은 준비된 장면 수에 넣지 않는다.
         if turn.question_type in {"initial", "main"}:
-            value["met"] = list(dict.fromkeys([*value["met"], items[value["index"]]["id"]]))
+            current = items[value["index"]]
+            value["met"] = list(dict.fromkeys([*value["met"], current["id"]]))
+            # 연속 모드: 막이 바뀔 때 직전 사용자 답을 carry로 한 줄 요약(잘라 저장)
+            if value["mode"] == CONTINUOUS_MODE:
+                nxt = value["index"] + 1
+                if nxt < len(items) and items[nxt].get("act_id") != current.get("act_id"):
+                    snippet = (turn.response_text or "").strip().replace("\n", " ")
+                    value["carry"] = snippet[:120]
             value["index"] += 1
     else:
         history = " ".join(t.response_text or "" for t in turns)
@@ -84,7 +125,7 @@ def advance(session, turn, turns, judgment=None):
 
 
 def current_briefing(value):
-    if value.get("mode") != "workplace" or value.get("finished"):
+    if value.get("mode") not in {"workplace", CONTINUOUS_MODE} or value.get("finished"):
         return None
     items = value.get("items") or []
     index = value.get("index", 0)
@@ -92,13 +133,14 @@ def current_briefing(value):
         return None
     item = items[index]
     return {
-        "category_id": item.get("category_id", ""),
-        "category_label": item.get("category_label", ""),
+        "category_id": item.get("category_id", "") or item.get("act_id", ""),
+        "category_label": item.get("category_label", "") or item.get("act_label", ""),
         "title": item.get("title", ""),
         "situation": item.get("situation", ""),
         "tip": item.get("tip", ""),
         "step": index + 1,
         "total": len(items),
+        "goal": item.get("goal", ""),
     }
 
 
