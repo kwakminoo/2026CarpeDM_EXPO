@@ -150,6 +150,16 @@ def build_fallback_plan(scenario, episodes, mode: int, rng=None) -> dict:
     return {"version": PLAN_VERSION, "source": "fallback", "acts": acts, "carry_seed": ""}
 
 
+def _model_line(text: str) -> str:
+    """모델이 쓴 한 줄. 한글이 없거나 메타 문장이면 빈 문자열."""
+    text = _SPACE.sub(" ", (text or "").strip())
+    if not text or len(text) > 180 or not _HANGUL.search(text):
+        return ""
+    if text.startswith(("{", "[", "*", "#")) or "**" in text:
+        return ""
+    return text
+
+
 def _valid_keywords(keywords) -> list[str]:
     cleaned = []
     for kw in keywords or []:
@@ -256,7 +266,7 @@ def act_bridge_line(character: dict | None, carry: str, item: dict) -> str:
 def validate_day_plan(plan: dict, character_ids: set[str], mode: int, episodes, categories=None) -> dict:
     """Planner JSON을 런타임 BeatSheet로 정규화한다. 실패 시 ValueError.
 
-    막·캐릭터·오프닝·에피소드는 팩 장면 한 세트로 맞춘다(이름/대사 불일치 방지).
+    화자·에피소드 id는 그 막의 팩 인물로 맞춘다. 첫 대사와 상황은 모델이 쓴 문장을 쓴다.
     """
     if not isinstance(plan, dict):
         raise ValueError("플랜이 객체가 아닙니다")
@@ -297,12 +307,14 @@ def validate_day_plan(plan: dict, character_ids: set[str], mode: int, episodes, 
             })
         anchor = anchor_episode_for_act(act_id, requested, episodes, categories)
         character_id = anchor.character_id
-        situation = str(raw.get("thread") or anchor.situation or "")[:240]
+        thread = _SPACE.sub(" ", str(raw.get("thread") or "").strip())
+        situation = thread[:240] if _HANGUL.search(thread) else (anchor.situation or "")[:240]
         tip = checklist[0]["tip"] if checklist else ""
         if not checklist:
             check = _checklist_row(anchor)
             checklist = [check]
             tip = check["tip"]
+        opening = _model_line(str(raw.get("opening_line") or "")) or (anchor.initial_question or "")
         acts.append({
             "id": act_id,
             # 영문 라벨(Morning 등)이 프롬프트로 새면 Act: Morning 에코가 난다 — 카테고리 한글 고정.
@@ -314,11 +326,10 @@ def validate_day_plan(plan: dict, character_ids: set[str], mode: int, episodes, 
             "virtual_time": str(raw.get("virtual_time") or anchor.virtual_time or "")[:5],
             "thread": situation,
             "beat_goals": goals,
-            # 오프닝은 팩 장면 고정 — 모델 opening_line이 다른 캐릭터 대사를 가져오는 경우 차단
-            "opening_line": anchor.initial_question,
+            "opening_line": opening,
             "checklist": checklist,
             "episode_id": anchor.id,
-            "title": anchor.title,
+            "title": (situation[:40] if _HANGUL.search(thread) else anchor.title),
             "situation": situation or anchor.situation,
             "tip": tip,
         })

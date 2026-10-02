@@ -215,6 +215,7 @@ def health():
     from app.ai.text_match import kiwi_available
     from app.core.database import engine
     from app.services.dialogue.availability import dialogue_ready
+    from app.services.iris_tts import iris_female_ready
     from app.services.tts import elevenlabs_ready
 
     from app.services.dialogue import stats as dialogue_stats
@@ -259,8 +260,10 @@ def health():
         "dialogue_provider": settings.dialogue_provider,
         "dialogue_ready": dialogue,
         "dialogue_fallback": dialogue_fallback,
-        "tts_provider": "elevenlabs" if elevenlabs_ready() else "browser",
+        "tts_provider": "iris" if iris_female_ready() else ("elevenlabs" if elevenlabs_ready() else "browser"),
         "tts_ready": elevenlabs_ready(),
+        "tts_female": "iris" if iris_female_ready() else "browser",
+        "tts_male": "browser",
         # 관측성: 지금 이 부스가 폴백으로 강등된 상태인지 즉시 확인 (60초 캐시)
         "ollama": ollama,
         "semantic_match": semantic,

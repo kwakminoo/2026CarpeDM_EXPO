@@ -1,7 +1,7 @@
 import { synthesizeSpeech } from "./pocApi.js";
 
 // 반환한 정리 함수는 질문 변경·일시정지·화면 이탈 시 호출한다.
-export function startTurnSpeech({ text, serverTtsReady, onSpeakingChange, onFinish, onNote }) {
+export function startTurnSpeech({ text, voice = "female", serverTtsReady, onSpeakingChange, onFinish, onNote }) {
   const synth = window.speechSynthesis;
   let cancelled = false;
   let browserSpeechStarted = false;
@@ -58,7 +58,7 @@ export function startTurnSpeech({ text, serverTtsReady, onSpeakingChange, onFini
   };
   const playElevenLabsSpeech = async () => {
     try {
-      const blob = await synthesizeSpeech(text);
+      const blob = await synthesizeSpeech(text, voice);
       if (cancelled) return;
       audioUrl = URL.createObjectURL(blob);
       audio = new Audio(audioUrl);

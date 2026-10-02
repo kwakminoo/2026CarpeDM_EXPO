@@ -54,4 +54,6 @@ def dialogue_ready() -> bool:
         return gemini_dialogue_ready()
     if settings.dialogue_provider == "openai":
         return openai_dialogue_ready()
+    if settings.dialogue_provider == "ollama":
+        return ollama_dialogue_ready()
     return False

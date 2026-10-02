@@ -143,14 +143,16 @@ export function PracticePage({ onPrev, onFinish, session, scenario, aiHealth, tu
     const text = turnSpeech;
     if (!text || paused || entryOverlayOpen) return undefined;
     const finishSpeaking = () => setShowQuestionOverlay(false);
+    const femaleVoice = character?.voice_gender === "female" && aiHealth?.tts_female === "iris";
     return startTurnSpeech({
       text,
-      serverTtsReady: aiHealth?.tts_ready,
+      voice: "female",
+      serverTtsReady: femaleVoice,
       onSpeakingChange: setAiSpeaking,
       onFinish: finishSpeaking,
       onNote: ttsNoteOnce,
     });
-  }, [turn?.id, turnSpeech, paused, entryOverlayOpen, aiHealth?.tts_ready]);
+  }, [turn?.id, turnSpeech, paused, entryOverlayOpen, character?.voice_gender, aiHealth?.tts_female]);
 
   // 시선 페이즈: AI가 말하는 동안은 '듣기', 그 외 턴 진행 중은 '말하기'.
   // 듣는 시선과 말하는 시선은 다른 역량이라 서버가 각각 다른 기준으로 채점한다

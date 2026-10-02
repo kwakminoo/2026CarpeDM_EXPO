@@ -56,7 +56,7 @@ if ($LASTEXITCODE -ne 0) {
 $health = & "$env:SystemRoot\System32\curl.exe" -s http://127.0.0.1:8001/api/health
 Write-Host "`n/api/health → $health`n"
 if ($health -match '"dialogue":\s*false') {
-    Write-Warning 'Ollama 대화 모델 미가동 — ollama pull exaone3.5:2.4b 필요 (실제 시뮬레이션 불가)'
+    Write-Warning 'Ollama 대화 모델 미가동 — ollama pull gemma4:26b-a4b-it-qat 필요 (실제 시뮬레이션 불가)'
 }
 # +) B2B 웹앱 (Vite :5174, 선택) — 실패해도 전시(1~3단계)에는 영향 없음
 & "$env:SystemRoot\System32\curl.exe" -s --max-time 3 http://localhost:5174 | Out-Null

@@ -4,6 +4,8 @@ from pathlib import Path
 
 # 테스트 전용 DB로 격리 (app 모듈 import 전에 설정해야 함)
 os.environ["MIRROR_TING_DATABASE_URL"] = "sqlite:///./test_mirror-ting.db"
+# 테스트는 로컬 Ollama를 호출하지 않는다. 실행 서버의 .env(ollama)와 분리한다.
+os.environ["MIRROR_TING_DIALOGUE_PROVIDER"] = "gemini"
 # 판정 결정성: 테스트는 키워드 매칭 계약을 고정한다 — 개발 머신에 Ollama가
 # 떠 있어도 의미 매칭이 골든 셋 판정을 흔들지 않게 (라이브 검증은 별도 skipif)
 os.environ["MIRROR_TING_SEMANTIC_MATCH_ENABLED"] = "false"

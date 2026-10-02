@@ -6,7 +6,7 @@
 # 하는 일:
 #   1. uv 설치 → Python 3.12 venv (.venv) + 의존성 + faster-whisper
 #   2. Whisper 간투어 모델 로컬 준비
-#   3. Ollama + exaone3.5:2.4b(대화 개인화). 의미 매칭은 프로젝트의 local E5 사용
+#   3. Ollama + gemma4:26b-a4b-it-qat(직장 대화). 의미 매칭은 프로젝트의 local E5 사용
 #      — EXAONE은 q8_0 KV 캐시와 비호환이라 f16을 강제한 LaunchAgent로 기동
 #   4. .env 생성 (없을 때만) — 대화 엔진 ollama 활성화
 set -euo pipefail
@@ -66,7 +66,7 @@ for i in $(seq 1 15); do
   curl -s --max-time 2 http://localhost:11434/api/version >/dev/null && break
   sleep 2
 done
-ollama pull exaone3.5:2.4b
+ollama pull gemma4:26b-a4b-it-qat
 
 echo "== [4/4] .env =="
 [ -f .env ] || printf '# 기준 문서: .env.example\nMIRROR_TING_DIALOGUE_PROVIDER=ollama\nMIRROR_TING_SEMANTIC_PROVIDER=local_e5\n' > .env

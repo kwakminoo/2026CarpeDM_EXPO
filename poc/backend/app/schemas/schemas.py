@@ -188,6 +188,9 @@ class ScenarioOut(BaseModel):
 
 class TtsIn(BaseModel):
     text: str = Field(min_length=1, max_length=700)
+    # female = 아이리스 목소리. male = 아직 제작 중이라 서버 합성을 거절하고 브라우저로 넘긴다.
+    # 빈 값은 기존 ElevenLabs 경로(하위 호환).
+    voice: Literal["female", "male", ""] = ""
 
 class ConsentIn(BaseModel):
     agreed: bool = False

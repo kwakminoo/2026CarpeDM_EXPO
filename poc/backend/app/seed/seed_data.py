@@ -28,6 +28,7 @@ CHARACTERS = [
     {
         "id": "kim_teamlead",
         "name": "김서윤 팀장",
+        "voice_gender": "female",
         "role": "상사",
         "role_key": "manager",
         "personality": "직설적이고 바쁘다. 결론부터 듣고 싶어 한다.",
@@ -57,6 +58,7 @@ CHARACTERS = [
     {
         "id": "park_senior",
         "name": "박서연 선임",
+        "voice_gender": "female",
         "role": "동료",
         "role_key": "colleague",
         "personality": "꼼꼼하고 차분하다. 근거와 절차를 중시한다.",
@@ -71,6 +73,7 @@ CHARACTERS = [
     {
         "id": "lee_peer",
         "name": "이준영",
+        "voice_gender": "male",
         "role": "동료",
         "role_key": "colleague",
         "personality": "친근하고 활발하다. 분위기를 풀어준다.",
@@ -85,6 +88,7 @@ CHARACTERS = [
     {
         "id": "han_cs",
         "name": "한지민 파트너 PM",
+        "voice_gender": "female",
         "role": "외부 파트너",
         "role_key": "partner",
         "personality": "협력 회사의 일정과 담당 범위를 조율한다. 약속을 분명히 하고 싶어 한다.",
@@ -99,6 +103,7 @@ CHARACTERS = [
     {
         "id": "cho_executive",
         "name": "조현우 본부장",
+        "voice_gender": "male",
         "role": "임원",
         "role_key": "executive",
         "personality": "사업 효과와 위험을 함께 본다. 결정 근거와 책임 범위를 중요하게 생각한다.",

@@ -97,6 +97,7 @@
     {
       "id": "jang_manager",
       "name": "장미란 점장",
+      "voice_gender": "female",
       "role": "상사",
       "role_key": "manager",
       "personality": "15년차 베테랑. 크루를 지켜보다가 필요한 순간에만 개입한다. 보고는 결론부터 듣고 싶어 한다.",
@@ -114,6 +115,7 @@
     {
       "id": "choi_senior",
       "name": "최다인 선배",
+      "voice_gender": "female",
       "role": "선배 크루",
       "role_key": "colleague",
       "personality": "3년차 크루. 러시타임의 사령탑. 빠르게 묻고 빠르게 나눈다.",

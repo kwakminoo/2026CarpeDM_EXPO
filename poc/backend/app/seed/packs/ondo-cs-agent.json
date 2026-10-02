@@ -57,6 +57,7 @@
     {
       "id": "upset_caller",
       "name": "정하윤 고객",
+      "voice_gender": "female",
       "role": "고객",
       "role_key": "customer",
       "personality": "아이 생일 케이크와 음료 배달이 50분째 오지 않아 화가 난 고객. 응대에 따라 감정이 실제로 오르내린다.",
@@ -97,6 +98,7 @@
     {
       "id": "kim_lead",
       "name": "김도현 팀장",
+      "voice_gender": "male",
       "role": "상사",
       "role_key": "manager",
       "personality": "콜 품질에 엄격하지만 신입에게는 성장 중심으로 피드백한다. 보고는 숫자와 패턴을 원한다.",
@@ -131,6 +133,7 @@
     {
       "id": "confused_caller",
       "name": "박준호 고객",
+      "voice_gender": "male",
       "role": "고객",
       "role_key": "customer",
       "personality": "멤버십 결제가 두 번 된 것 같다며 문의하는 고객. 화가 났다기보다 불안하다.",

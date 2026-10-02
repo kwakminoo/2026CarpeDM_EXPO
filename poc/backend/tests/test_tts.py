@@ -42,3 +42,50 @@ def test_tts_endpoint_returns_audio_mpeg_when_synthesis_succeeds(monkeypatch):
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/mpeg"
     assert response.content == b"fake-mp3"
+
+
+def test_female_tts_returns_iris_wav(monkeypatch):
+    monkeypatch.setattr("app.api.tts.synthesize_iris", lambda _text: b"RIFFiris")
+
+    response = TestClient(app).post("/api/tts", json={"text": "안녕하세요.", "voice": "female"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.content == b"RIFFiris"
+
+
+def test_male_tts_is_not_ready():
+    response = TestClient(app).post("/api/tts", json={"text": "안녕하세요.", "voice": "male"})
+
+    assert response.status_code == 503
+
+
+def test_iris_synthesis_reads_only_iris_home_wav(monkeypatch, tmp_path):
+    from app.services.iris_tts import synthesize_iris
+    from app.services.tts import SpeechSynthesisError
+
+    wav = tmp_path / "generated.wav"
+    wav.write_bytes(b"wav-bytes")
+    outside = tmp_path.parent / "not-iris.wav"
+    monkeypatch.setattr("app.services.iris_tts._audio_root", lambda: tmp_path.resolve())
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"audio_path": str(wav)}
+
+    monkeypatch.setattr("app.services.iris_tts.httpx.post", lambda *args, **kwargs: FakeResponse())
+    assert synthesize_iris("안녕하세요.") == b"wav-bytes"
+
+    class OutsideResponse(FakeResponse):
+        def json(self):
+            return {"audio_path": str(outside)}
+
+    monkeypatch.setattr("app.services.iris_tts.httpx.post", lambda *args, **kwargs: OutsideResponse())
+    try:
+        synthesize_iris("다른 경로.")
+    except SpeechSynthesisError:
+        return
+    raise AssertionError("아이리스 홈 밖의 wav는 읽으면 안 된다")

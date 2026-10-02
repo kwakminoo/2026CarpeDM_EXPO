@@ -37,10 +37,10 @@ class Settings(BaseSettings):
         "어, 저는 음, 이번 일을 해 봤는데요. 어, 어, 잠시 생각해 볼게요."
     )
 
-    # 역할극 대사: gemini(기본) 또는 openai. 실패 시 직장대화는 팩 BeatSheet로 폴백한다.
-    dialogue_provider: Literal["gemini", "openai"] = "gemini"
+    # 역할극 대사: ollama(로컬) | gemini | openai. 실패 시 직장대화는 팩 BeatSheet로 폴백한다.
+    dialogue_provider: Literal["ollama", "gemini", "openai"] = "gemini"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "exaone3.5:2.4b"
+    ollama_model: str = "gemma4:26b-a4b-it-qat"
     # 초과 시 템플릿 질문으로 즉시 폴백하므로 상한일 뿐 평균 지연이 아니다.
     #
     # 7.0s는 '단독 호출' 실측(질문 p95 5.3s·리액션 p95 3.6s)으로 잡은 값이라 실제 UX와
@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     elevenlabs_voice_id: str = ""
     elevenlabs_model: str = "eleven_multilingual_v2"
     elevenlabs_timeout_sec: float = 20.0
+    # 여자 TTS는 아이리스 보이스 런타임(Qwen3-TTS + iris_voice_profile)을 그대로 쓴다.
+    # 빈 voice_prompt_hash가 커밋된 아이리스 프로필을 고른다. mock 런타임은 무음이라 쓰지 않는다.
+    iris_voice_base_url: str = "http://127.0.0.1:18765"
+    iris_voice_timeout_sec: float = 180.0
 
     # 의미 매칭 (마스터리 ②): Response-Fit 데이터로 fine-tuning한 로컬 E5로
     # 패러프레이즈 커버리지를 인식한다. 모델 파일이 없으면 키워드 매칭만 사용한다.

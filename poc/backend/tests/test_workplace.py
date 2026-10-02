@@ -106,8 +106,8 @@ def test_validate_day_plan_rejects_bad_character():
         pass
 
 
-def test_validate_day_plan_syncs_character_opening_to_act_episode():
-    """출근 막에 최동료를 넣어도 출근 장면·오프닝·캐릭터로 교정한다."""
+def test_validate_day_plan_keeps_model_opening_and_snaps_character():
+    """출근 막의 화자는 그 막 인물로 맞추고, 첫 대사는 모델이 쓴 문장을 유지한다."""
     episodes = _episodes()
     plan = {
         "acts": [
@@ -142,8 +142,8 @@ def test_validate_day_plan_syncs_character_opening_to_act_episode():
     morning = out["acts"][0]
     assert morning["character_id"] in {"park_senior", "lee_teamlead"}
     anchor = next(ep for ep in episodes if ep.id == morning["episode_id"])
-    assert morning["opening_line"] == anchor.initial_question
-    assert morning["opening_line"] != "원래 제가 계속 생각하고 있던 방향이에요."
+    assert morning["opening_line"] == "원래 제가 계속 생각하고 있던 방향이에요."
+    assert morning["opening_line"] != anchor.initial_question
     assert morning["character_id"] == anchor.character_id
 
 
